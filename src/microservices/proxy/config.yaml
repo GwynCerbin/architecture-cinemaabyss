@@ -1,0 +1,61 @@
+# Set AUTH_PUBLIC_KEY to the auth service's PEM public key before enabling auth.
+auth:
+  enabled: true
+  url: http://auth-service:8080
+  timeout: 5s
+  algorithm: RS256
+  public_key: "" # Or set AUTH_PUBLIC_KEY (PEM; literal \n is supported).
+  access_cookie: access
+  refresh_cookie: refresh
+  secure_cookies: true
+  refresh_ttl: 720h
+  endpoints:
+    login: {method: POST, path: /login}
+    logout: {method: POST, path: /logout}
+    refresh: {method: POST, path: /refresh}
+
+debug: false
+rest_server:
+  address: "0.0.0.0:3000" #LOOKUP ENV REST_SERVER_SERVER_ADDRESS=
+  dumb_gateway:
+    services:
+      - name: "User manager"
+        description: "Сервис авторизации"
+        host: http://user-manager:8895
+        handlers:
+          #AUTH
+          - gw_path: "v1/gateway/auth/user/password_restore_session/create_one"
+            path: "/auth/user/password_restore_session/create_one"
+            method: POST
+            description: "Создание сессии восстановления пароля"
+
+          - gw_path: "v1/gateway/auth/user/password_restore_session/get_one"
+            path: "/auth/user/password_restore_session/get_one"
+            method: POST
+            description: "Получение сессии восстановления пароля"
+
+          - gw_path: "v1/gateway/auth/user/password_restore_session/use_one"
+            path: "/auth/user/password_restore_session/use_one"
+            method: PATCH
+            description: "Использование сессии восстановления пароля"
+
+          - gw_path: "v1/gateway/auth/user/export_all_in_csv"
+            path: "/auth/user/export_all_in_csv"
+            method: POST
+            use_cookie: true
+            description: "Получение всех пользователей в формате csv файла"
+            check_power:
+              - "#Users"
+
+      - name: "Access manager" #TODO Front should fix param in body from uuid to id
+        description: "Контроль доступа"
+        host: http://access-manager:28891
+        no_check: true
+        handlers:
+           - gw_path: "v1/gateway/access/templates"
+             path: "v1/templates"
+             method: GET
+             description: "Получение списка шаблонов"
+             use_cookie: true
+             check_power:
+               - "#Analysis_Access"

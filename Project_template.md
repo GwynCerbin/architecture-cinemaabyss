@@ -3,9 +3,37 @@
 # Задание 1
 
 1. Спроектируйте to be архитектуру КиноБездны, разделив всю систему на отдельные домены и организовав интеграционное взаимодействие и единую точку вызова сервисов.
-Результат представьте в виде контейнерной диаграммы в нотации С4.
-Добавьте ссылку на файл в этот шаблон
-[ссылка на файл](ссылка)
+
+```puml
+@startuml
+title Cinema Abyss - container diagram
+
+!include <C4/C4_Container>
+
+top to bottom direction
+
+Person(user, "User", "Uses the Cinema Abyss system")
+
+System_Boundary(cinemaAbyssSystem,"Cinema Abyss system") {
+    Container(WebUI, "Web UI", "JavaScript", "Cinema Abyss web interface")
+    Container(MobileUI, "Mobile UI", "Java/Swift", "Cinema Abyss mobile interface")
+    Container(WebBFF, "Web BFF", "Go")
+    Container(MobileBFF,"Mobile BFF", "Go")
+    Container(AuthService, "Auth service",  "Users, authentication, sessions and tokens")
+}
+
+Rel_D(WebUI, WebBFF,"Uses", "HTTP/JSON")
+Rel_D(MobileUI, MobileBFF,"Uses", "gRPC/proto")
+Rel_D(WebUI, AuthService, "Signs in and manages sessions", "HTTP/JSON")
+Rel_D(MobileUI, AuthService, "Signs in and manages sessions", "gRPC/proto")
+Rel_R(WebBFF, AuthService, "Validates tokens and user permissions;receives user_id", "HTTP/JSON")
+Rel_L(MobileBFF, AuthService, "Validates tokens and user permissions", "gRPC/proto")
+
+
+@enduml
+```
+
+
 
 # Задание 2
 
