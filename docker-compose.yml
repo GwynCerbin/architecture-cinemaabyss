@@ -47,6 +47,12 @@ services:
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --list >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 20s
     networks:
       - cinemaabyss-network
 
@@ -89,34 +95,47 @@ services:
       dockerfile: Dockerfile
     container_name: cinemaabyss-events-service
     depends_on:
-      - postgres
-      - kafka
+      kafka:
+        condition: service_healthy
     ports:
       - "8082:8082"
     environment:
-      PORT: 8082
+      HTTP_SERVER_PORT: "8082"
+      HTTP_SERVER_SHUTDOWN_TIMEOUT: "5s"
       KAFKA_BROKERS: kafka:9092
+      KAFKA_CLIENT_ID: events-service
+      KAFKA_CONSUMER_GROUP: events-worker
+      KAFKA_LISTENER_SHUTDOWN_TIMEOUT: "20s"
+      EVENTS_MOVIE_TOPIC: movie-events
+      EVENTS_USER_TOPIC: user-events
+      EVENTS_PAYMENT_TOPIC: payment-events
+    stop_grace_period: 40s
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1:8082/api/events/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
     networks:
       - cinemaabyss-network
 
   # Proxy Service (API Gateway)
   proxy-service:
     build:
-      context: ./src/microservices/proxy
+      context: ./src/proxy
       dockerfile: Dockerfile
     container_name: cinemaabyss-proxy-service
     depends_on:
       - monolith
       - movies-service
       - events-service
+    volumes:
+      - ./src/proxy/config.yaml:/etc/proxy/config.yaml:ro
     ports:
       - "8000:8000"
     environment:
       PORT: 8000
-      MONOLITH_URL: http://monolith:8080
-      MOVIES_SERVICE_URL: http://movies-service:8081
-      EVENTS_SERVICE_URL: http://events-service:8082
-      GRADUAL_MIGRATION: "true"
+      CONFIG_PATH: /etc/proxy/config.yaml
       MOVIES_MIGRATION_PERCENT: "50"
     networks:
       - cinemaabyss-network

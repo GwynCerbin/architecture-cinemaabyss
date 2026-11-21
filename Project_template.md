@@ -1,5 +1,3 @@
-## Изучите [README.md](.\README.md) файл и структуру проекта.
-
 # Задание 1
 
 1. Спроектируйте to be архитектуру КиноБездны, разделив всю систему на отдельные домены и организовав интеграционное взаимодействие и единую точку вызова сервисов.
@@ -12,24 +10,70 @@ title Cinema Abyss - container diagram
 
 top to bottom direction
 
-Person(user, "User", "Uses the Cinema Abyss system")
+Person(User, "User", "Uses the Cinema Abyss system")
+
+System_Ext(PaymentGateway, "Payment Provider", "External payment provider system")
+System_Ext(LicensorAPI, "External Licensor Systems", "Provides movie metadata, content availability, playback authorization and streaming URLs")
+System_Ext(RecommendationSystem, "External Recommendation System", "Generates personalized movie recommendations based on user preferences and viewing history")
+
 
 System_Boundary(cinemaAbyssSystem,"Cinema Abyss system") {
     Container(WebUI, "Web UI", "JavaScript", "Cinema Abyss web interface")
-    Container(MobileUI, "Mobile UI", "Java/Swift", "Cinema Abyss mobile interface")
+    Container(MobileApp, "Mobile UI", "Java/Swift", "Cinema Abyss mobile interface")
     Container(WebBFF, "Web BFF", "Go")
     Container(MobileBFF,"Mobile BFF", "Go")
-    Container(AuthService, "Auth service",  "Users, authentication, sessions and tokens")
+    Container(AuthService, "Auth service", "Go", "Users, authentication, sessions and tokens")
+    Container(OrderService, "Order Service", "Go","Processing payment orders")
+    Container(SubscriptionService, "Subscription service", "Go","Provides control on subscriptions")
+    Container(RecommendationService,"Recommendation Service","Go","Stores user favourite films and view history, based on metadata pushes recommendations")
+    Container(MovieService, "Movie service", "Go","Serves external apis movie providers, keeps its own rating system")
+    ContainerQueue(queue, "Event Bus", "Kafka", "Cinema Abyss Message Broker")
+    ContainerDb(db, "PostgreSQL", "PostgreSQL", "Service-isolated databases, with a shared database for both BFFs; consolidated for diagram readability")
 }
 
-Rel_D(WebUI, WebBFF,"Uses", "HTTP/JSON")
-Rel_D(MobileUI, MobileBFF,"Uses", "gRPC/proto")
+Rel_D(User, "WebUI", "Uses")
+Rel_D(User, "MobileApp", "Uses")
+
+Rel_D(WebUI, WebBFF, "Searches movies, browses collections, submits ratings, manages subscriptions and requests playback", "HTTPS/JSON")
+Rel_D(MobileApp, MobileBFF, "Searches movies, browses collections, submits ratings, manages subscriptions and requests playback", "gRPC/proto")
 Rel_D(WebUI, AuthService, "Signs in and manages sessions", "HTTP/JSON")
-Rel_D(MobileUI, AuthService, "Signs in and manages sessions", "gRPC/proto")
+Rel_D(MobileApp, AuthService, "Signs in and manages sessions", "gRPC/proto")
+
+Rel_D(WebBFF, OrderService, "Creates payment form, controls refunds for subscriptions", "grpc/proto")
+Rel_D(MobileBFF, OrderService, "Creates payment form, controls refunds for subscriptions", "grpc/proto")
+Rel_D(WebBFF, SubscriptionService, "Controls subscriptions, freeze,unfreeze,share the subscriptions", "grpc/proto")
+Rel_D(MobileBFF, SubscriptionService, "Controls subscriptions, freeze,unfreeze,share the subscriptions", "grpc/proto")
 Rel_R(WebBFF, AuthService, "Validates tokens and user permissions;receives user_id", "HTTP/JSON")
-Rel_L(MobileBFF, AuthService, "Validates tokens and user permissions", "gRPC/proto")
+Rel_R(MobileBFF, AuthService, "Validates tokens and user permissions", "gRPC/proto")
+Rel_D(WebBFF, MovieService, "Searches movies, retrieves movie details, submits ratings and requests playback access", "gRPC/proto")
+Rel_D(MobileBFF, MovieService, "Searches movies, retrieves movie details, submits ratings and requests playback access", "gRPC/proto")
+Rel_D(MobileBFF, RecommendationService, "Sends user viewing activity, favourites and movie metadata", "gRPC/proto")
+Rel_D(WebBFF, RecommendationService, "Sends user viewing activity, favourites and movie metadata", "gRPC/proto")
 
 
+Rel_D(OrderService, queue, "Publishes payment and refund facts", "Kafka/Async Events")
+Rel_U(queue, SubscriptionService, "Consumes payment and refund events", "Kafka/Async Events")
+Rel_D(RecommendationService,queue, "Publishes events of new recommendation movies for users", "Kafka/Async Events")
+Rel_D(MovieService, queue, "Publishes new movie releases and catalog updates", "Kafka/Async Events")
+Rel_U(queue, MobileBFF, "Consumes movie, recommendation, order and subscription events", "Kafka/Consumer Group: bff-group")
+Rel_U(queue, WebBFF, "Consumes movie, recommendation, order and subscription events", "Kafka/Consumer Group: bff-group")
+Rel_D(SubscriptionService, queue, "Publishes subscription lifecycle events", "Kafka/Async Events")
+
+
+Rel_D(OrderService, db,"Stores, order info and statuses", "SQL")
+Rel(RecommendationService, db, "Stores user viewing history, favourites and movie metadata", "SQL")
+Rel_D(MovieService, db, "Stores movie metadata, user ratings and licensor integration details", "SQL")
+Rel(MobileBFF, db, "Stores read models for orders, subscriptions, personalized recommendations and curated movie collections", "SQL")
+Rel(WebBFF, db, "Stores read models for orders, subscriptions, personalized recommendations and curated movie collections", "SQL")
+Rel(AuthService, db, "Stores user permissions and sessions", "SQL")
+Rel_D(SubscriptionService, db, "Stores subscriptions, statuses and shared subscription memberships", "SQL")
+
+
+Rel_D(OrderService, PaymentGateway, "Initiate payment/refund", "HTTPS/JSON")
+Rel_D(MovieService, LicensorAPI, "Fetches movie metadata, content availability and playback access", "HTTPS/JSON")
+Rel_D(MobileApp, LicensorAPI,"Streams licensed video content", "HTTPS/HLS/DASH")
+Rel_D(WebUI, LicensorAPI,"Streams licensed video content", "HTTPS/HLS/DASH")
+BiRel(RecommendationService, RecommendationSystem, "Exchanges user preference data and personalized movie recommendations", "RabbitMQ/AMQP")
 @enduml
 ```
 
