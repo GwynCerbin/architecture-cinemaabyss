@@ -130,7 +130,10 @@ BiRel(RecommendationService, RecommendationSystem, "Exchanges user preference da
 
 Необходимые тесты для проверки этого API вызываются при запуске npm run test:local из папки tests/postman 
 Приложите скриншот тестов и скриншот состояния топиков Kafka из UI http://localhost:8090 
-
+#### Скриншот успешно выполненных тестов
+![Скриншот](images/img.png)
+### Скриншот состояние топиков из ui
+![Скриншот](images/img_1.png)
 # Задание 3
 
 Команда начала переезд в Kubernetes для лучшего масштабирования и повышения надежности. 
@@ -249,6 +252,7 @@ cat .docker/config.json | base64
   2. Создайте секреты и переменные
   ```bash
   kubectl apply -f src/kubernetes/configmap.yaml
+  kubectl apply -f src/kubernetes/proxy-configmap.yaml
   kubectl apply -f src/kubernetes/secret.yaml
   kubectl apply -f src/kubernetes/dockerconfigsecret.yaml
   kubectl apply -f src/kubernetes/postgres-init-configmap.yaml
@@ -344,10 +348,14 @@ cat .docker/config.json | base64
   Часть тестов с health-чек упадет, но создание событий отработает.
   Откройте логи event-service и сделайте скриншот обработки событий
 
-#### Шаг 3
-Добавьте сюда скриншота вывода при вызове https://cinemaabyss.example.com/api/movies и  скриншот вывода event-service после вызова тестов.
+#### Результат тестов
+![img.png](images/kuber-test-results.png)
 
+#### События созданные и прочитанные events service
+![img.png](images/kuber-events.png)
 
+#### Результат вывода по ручке
+![img.png](images/kuber-test-endpoint.png)
 # Задание 4
 Для простоты дальнейшего обновления и развертывания вам как архитектуру необходимо так же реализовать helm-чарты для прокси-сервиса и проверить работу 
 
@@ -421,10 +429,8 @@ minikube tunnel
 Потом вызовите 
 https://cinemaabyss.example.com/api/movies
 и приложите скриншот развертывания helm и вывода https://cinemaabyss.example.com/api/movies
-
-## Удаляем все
-
-```bash
-kubectl delete all --all -n cinemaabyss
-kubectl delete namespace cinemaabyss
-```
+## Скриншот развертывания
+![img.png](images/helm-deployment.png)
+![img_1.png](images/helm-applied.png)
+## Результат вывода по ручке
+![img.png](images/helm-test-endpoint.png)

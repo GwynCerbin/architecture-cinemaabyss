@@ -1,0 +1,78 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: proxy-service
+  namespace: cinemaabyss
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: proxy-service
+  template:
+    metadata:
+      labels:
+        app: proxy-service
+    spec:
+      terminationGracePeriodSeconds: 40
+      imagePullSecrets:
+      - name: dockerconfigjson
+      containers:
+      - name: proxy-service
+        image: ghcr.io/gwyncerbin/architecture-cinemaabyss/proxy-service:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8000
+        env:
+        - name: PORT
+          value: "8000"
+        - name: CONFIG_PATH
+          value: /etc/proxy/config.yaml
+        - name: MOVIES_MIGRATION_PERCENT
+          valueFrom:
+            configMapKeyRef:
+              name: cinemaabyss-config
+              key: MOVIES_MIGRATION_PERCENT
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 256Mi
+        startupProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          periodSeconds: 5
+          failureThreshold: 60
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          periodSeconds: 20
+        volumeMounts:
+        - name: proxy-config
+          mountPath: /etc/proxy
+          readOnly: true
+      volumes:
+      - name: proxy-config
+        configMap:
+          name: proxy-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: proxy-service
+  namespace: cinemaabyss
+spec:
+  selector:
+    app: proxy-service
+  ports:
+  - port: 8000
+    targetPort: 8000
+  type: ClusterIP
