@@ -4,38 +4,73 @@ kind: Deployment
 metadata:
   name: events-service
   namespace: {{ .Values.global.namespace }}
-  labels:
-    app: events-service
-    app.kubernetes.io/name: {{ include "cinemaabyss.name" . }}
-    app.kubernetes.io/instance: {{ .Release.Name }}
 spec:
   replicas: {{ .Values.eventsService.replicas }}
   selector:
     matchLabels:
       app: events-service
-  strategy:
-    type: RollingUpdate
-    rollingUpdate:
-      maxSurge: 1
-      maxUnavailable: 0
   template:
     metadata:
       labels:
         app: events-service
     spec:
+      terminationGracePeriodSeconds: 40
+      imagePullSecrets:
+      - name: dockerconfigjson
       containers:
       - name: events-service
-       .... тут
+        image: "{{ .Values.eventsService.image.repository }}:{{ .Values.eventsService.image.tag }}"
+        imagePullPolicy: {{ .Values.eventsService.image.pullPolicy }}
+        ports:
+        - containerPort: {{ .Values.eventsService.service.targetPort }}
+        env:
+        - name: HTTP_SERVER_PORT
+          value: {{ .Values.eventsService.service.targetPort | quote }}
+        - name: HTTP_SERVER_SHUTDOWN_TIMEOUT
+          value: "5s"
+        - name: KAFKA_BROKERS
+          value: kafka:9092
+        - name: KAFKA_CLIENT_ID
+          value: events-service
+        - name: KAFKA_CONSUMER_GROUP
+          value: events-worker
+        - name: KAFKA_LISTENER_SHUTDOWN_TIMEOUT
+          value: "20s"
+        - name: EVENTS_MOVIE_TOPIC
+          value: movie-events
+        - name: EVENTS_USER_TOPIC
+          value: user-events
+        - name: EVENTS_PAYMENT_TOPIC
+          value: payment-events
+        resources:
+          {{- toYaml .Values.eventsService.resources | nindent 10 }}
+        startupProbe:
+          httpGet:
+            path: /api/events/health
+            port: {{ .Values.eventsService.service.targetPort }}
+          periodSeconds: 5
+          failureThreshold: 60
+        readinessProbe:
+          httpGet:
+            path: /api/events/health
+            port: {{ .Values.eventsService.service.targetPort }}
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /api/events/health
+            port: {{ .Values.eventsService.service.targetPort }}
+          periodSeconds: 20
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: events-service
   namespace: {{ .Values.global.namespace }}
-  labels:
-    app: events-service
-    app.kubernetes.io/name: {{ include "cinemaabyss.name" . }}
-    app.kubernetes.io/instance: {{ .Release.Name }}
 spec:
- ........ и тут
+  selector:
+    app: events-service
+  ports:
+  - port: {{ .Values.eventsService.service.port }}
+    targetPort: {{ .Values.eventsService.service.targetPort }}
+  type: {{ .Values.eventsService.service.type }}
 {{- end }}

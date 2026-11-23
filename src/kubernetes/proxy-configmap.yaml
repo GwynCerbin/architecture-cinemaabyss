@@ -1,0 +1,72 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: proxy-config
+  namespace: cinemaabyss
+data:
+  config.yaml: |
+    # Авторизация отключена
+    auth:
+      enabled: false
+    
+    debug: false
+    rest_server:
+      gateway:
+        services:
+          - name: "Monolith"
+            host: http://monolith:8080
+            no_check: true
+            handlers:
+              - gw_path: /api/movies
+                path: /api/movies
+                method: GET
+                share: 50
+              - gw_path: /api/movies
+                path: /api/movies
+                method: POST
+                share: 50
+              - gw_path: /api/users
+                path: /api/users
+                method: GET
+              - gw_path: /api/users
+                path: /api/users
+                method: POST
+              - gw_path: /api/payments
+                path: /api/payments
+                method: GET
+              - gw_path: /api/payments
+                path: /api/payments
+                method: POST
+              - gw_path: /api/subscriptions
+                path: /api/subscriptions
+                method: GET
+              - gw_path: /api/subscriptions
+                path: /api/subscriptions
+                method: POST
+    
+          - name: "Movies"
+            host: http://movies-service:8081
+            no_check: true
+            handlers:
+              - gw_path: /api/movies
+                path: /api/movies
+                method: GET
+                share: 50
+              - gw_path: /api/movies
+                path: /api/movies
+                method: POST
+                share: 50
+    
+          - name: "Events"
+            host: http://events-service:8082
+            no_check: true
+            handlers:
+              - gw_path: /api/events/movie
+                path: /api/events/movie
+                method: POST
+              - gw_path: /api/events/user
+                path: /api/events/user
+                method: POST
+              - gw_path: /api/events/payment
+                path: /api/events/payment
+                method: POST

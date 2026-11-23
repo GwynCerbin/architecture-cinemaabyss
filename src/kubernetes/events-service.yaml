@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: events-service
+  namespace: cinemaabyss
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: events-service
+  template:
+    metadata:
+      labels:
+        app: events-service
+    spec:
+      terminationGracePeriodSeconds: 40
+      imagePullSecrets:
+      - name: dockerconfigjson
+      containers:
+      - name: events-service
+        image: ghcr.io/gwyncerbin/architecture-cinemaabyss/events-service:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8082
+        env:
+        - name: HTTP_SERVER_PORT
+          value: "8082"
+        - name: HTTP_SERVER_SHUTDOWN_TIMEOUT
+          value: "5s"
+        - name: KAFKA_BROKERS
+          value: kafka:9092
+        - name: KAFKA_CLIENT_ID
+          value: events-service
+        - name: KAFKA_CONSUMER_GROUP
+          value: events-worker
+        - name: KAFKA_LISTENER_SHUTDOWN_TIMEOUT
+          value: "20s"
+        - name: EVENTS_MOVIE_TOPIC
+          value: movie-events
+        - name: EVENTS_USER_TOPIC
+          value: user-events
+        - name: EVENTS_PAYMENT_TOPIC
+          value: payment-events
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 256Mi
+        startupProbe:
+          httpGet:
+            path: /api/events/health
+            port: 8082
+          periodSeconds: 5
+          failureThreshold: 60
+        readinessProbe:
+          httpGet:
+            path: /api/events/health
+            port: 8082
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /api/events/health
+            port: 8082
+          periodSeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: events-service
+  namespace: cinemaabyss
+spec:
+  selector:
+    app: events-service
+  ports:
+  - port: 8082
+    targetPort: 8082
+  type: ClusterIP
